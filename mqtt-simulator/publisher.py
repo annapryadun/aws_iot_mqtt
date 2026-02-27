@@ -37,18 +37,17 @@ class Publisher(threading.Thread):
         client = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION2,
             protocol=MQTTProtocolVersion(self.broker_settings.protocol),
+            client_id=self.topic_url.replace("/", "-"),
             clean_session=clean_session,
         )
         client.on_publish = self.on_publish
+        client.on_connect = self.on_connect
+        client.on_disconnect = self.on_disconnect
         if self.broker_settings.is_tls_enabled():
-            client.tls_set(
-                ca_certs=self.broker_settings.tls_ca_path,
-                certfile=self.broker_settings.tls_cert_path,
-                keyfile=self.broker_settings.tls_key_path,
-                cert_reqs=ssl.CERT_REQUIRED,
-                tls_version=ssl.PROTOCOL_TLSv1_2,
-                ciphers=None,
-            )
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.load_cert_chain(self.broker_settings.tls_cert_path, self.broker_settings.tls_key_path)
+            context.load_verify_locations(self.broker_settings.tls_ca_path)
+            client.tls_set_context(context)
         if self.broker_settings.is_auth_enabled():
             client.username_pw_set(
                 username=self.broker_settings.auth_username,
@@ -56,10 +55,12 @@ class Publisher(threading.Thread):
             )
         return client
 
-    def run(self):
-        self.loop = True
+    def connect(self):
         self.client.connect(self.broker_settings.url, self.broker_settings.port)
         self.client.loop_start()
+
+    def run(self):
+        self.loop = True
         self.start_publish_loop()
 
     def stop(self):
@@ -90,6 +91,12 @@ class Publisher(threading.Thread):
             self.stop()
             return None
         return payload
+
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        print(f"[{time.strftime('%H:%M:%S')}] {self.topic_url} connected: {reason_code}")
+
+    def on_disconnect(self, client, userdata, flags, reason_code, properties):
+        print(f"[{time.strftime('%H:%M:%S')}] {self.topic_url} disconnected: {reason_code}")
 
     def on_publish(self, client, userdata, mid, reason_code, properties):
         on_publish_log = f"[{time.strftime('%H:%M:%S')}] Data published on: {self.topic_url}"

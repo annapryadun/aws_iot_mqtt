@@ -7,6 +7,9 @@ class Simulator:
 
     def run(self):
         for publisher in self.publishers:
+            print(f"Connecting: {publisher.topic_url} ...")
+            publisher.connect()
+        for publisher in self.publishers:
             print(f"Starting: {publisher.topic_url} ...")
             publisher.start()
 
