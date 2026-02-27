@@ -1,40 +1,21 @@
-# MQTT Simulator
+# AWS IoT MQTT Pipeline
 
-A lightweight, easy-to-configure MQTT simulator written in [Python 3](https://www.python.org/) for publishing JSON objects to a broker, simulating sensors and devices.
+An AWS IoT data pipeline using the [MQTT Simulator](https://github.com/DamascenoRafael/mqtt-simulator) to publish simulated IoT device data to AWS IoT Core, with routing to S3, Timestream, Lambda, DynamoDB, IoT Analytics, and SageMaker.
 
-[Features](#features) •
-[Getting Started](#getting-started) •
-[Configuration](#configuration) •
-[Main contributors](#main-contributors)
+## Architecture
 
-![Simulator Running](docs/images/simulator-running.gif)
-
-## Features
-
-* Lightweight and easy-to-configure simulator for publishing data to an MQTT broker
-* Simple setup with a single JSON configuration file
-* Publish data on predefined fixed topics
-* Publish data on multiple topics that have a variable id or items at the end
-* Simulated random variation of data based on configurable parameters
-* Real-time event logging during simulation
+```
+MQTT Simulator → AWS IoT Core
+                   ├→ S3 (raw data lake)
+                   ├→ Amazon Timestream (time-series queries)
+                   ├→ Lambda → DynamoDB (alerts)
+                   ├→ IoT Analytics → SageMaker (ML)
+                   └→ CloudWatch (monitoring)
+```
 
 ## Getting Started
 
-### Running using Python
-
-Run the simulator with the default settings file (`config/settings.json`):
-
-```shell
-python3 mqtt-simulator/main.py 
-```
-
-Or specify a custom settings file:
-
-```shell
-python3 mqtt-simulator/main.py -f <path/settings.json>
-```
-
-To install all dependencies with a virtual environment before using:
+### 1. Install dependencies
 
 ```shell
 python3 -m venv venv
@@ -42,65 +23,40 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 ```
 
-### Running using uv
-
-Run the simulator with [uv](https://github.com/astral-sh/uv), a fast Python package and project manager - no need to manually setup a virtual environment:
+### 2. Run with public broker (HiveMQ)
 
 ```shell
-uv run mqtt-simulator/main.py -f <path/settings.json>
+python3 mqtt-simulator/main.py -v
 ```
 
-### Running using Docker
+### 3. Run with AWS IoT Core
 
-Additionally, you can run the simulator via [Docker](https://docs.docker.com/get-docker/) using the provided `Dockerfile`.
-
-Build the image:
+Place your AWS IoT certificates in `certs/` and run:
 
 ```shell
-docker build -t mqtt-simulator .
+python3 mqtt-simulator/main.py -f config/settings-aws.json -v
 ```
 
-Run the container:
-
-```shell
-docker run mqtt-simulator -f <path/settings.json>
-```
+See [AWS IoT Pipeline Guide](docs/aws-iot-pipeline.md) for step-by-step instructions on setting up the full pipeline.
 
 ## Configuration
 
-See the [configuration documentation](./docs/configuration.md) for detailed usage instructions.
+- `config/settings.json` — default config (public HiveMQ broker)
+- `config/settings-aws.json` — AWS IoT Core config (TLS mutual auth, QoS 1)
 
-You can also check a full settings file example at: [settings.json](../config/settings.json).
+See the [configuration documentation](docs/configuration.md) for all available settings.
 
-Below is a minimal configuration file that connects to the `broker.hivemq.com` broker and publishes data to the `/place/roof` and `/place/basement` topics. The simulator generates `temperature` variations based on the provided parameters:
+## AWS IoT Pipeline Documentation
 
-```json
-{
-  "BROKER_URL": "broker.hivemq.com",
-  "TOPICS": [
-    {
-      "TYPE": "list",
-      "PREFIX": "place",
-      "LIST": ["roof", "basement"],
-      "TIME_INTERVAL": 8,
-      "DATA": [
-        {
-          "NAME": "temperature",
-          "TYPE": "float",
-          "MIN_VALUE": 20,
-          "MAX_VALUE": 55,
-          "MAX_STEP": 3,
-          "RETAIN_PROBABILITY": 0.5,
-          "INCREASE_PROBABILITY": 0.6
-        }
-      ]
-    }
-  ]
-}
-```
+The [AWS IoT Pipeline Guide](docs/aws-iot-pipeline.md) covers setting up:
 
-## Main contributors
+1. **S3** — raw data lake for ML training
+2. **Amazon Timestream** — time-series database for sensor queries
+3. **Lambda + DynamoDB** — real-time alert processing
+4. **IoT Analytics** — managed data pipeline with SageMaker integration
+5. **SageMaker** — anomaly detection and forecasting
+6. **CloudWatch** — monitoring and alarms
 
-[![DamascenoRafael](https://github.com/DamascenoRafael.png?size=70)](https://github.com/DamascenoRafael)
-[![Maasouza](https://github.com/Maasouza.png?size=70)](https://github.com/Maasouza)
-[![AJ Danelz](https://github.com/vordimous.png?size=70)](https://github.com/vordimous)
+## Credits
+
+MQTT Simulator by [DamascenoRafael/mqtt-simulator](https://github.com/DamascenoRafael/mqtt-simulator)
